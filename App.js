@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,10 +12,25 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  Animated,
+  Platform,
 } from 'react-native';
 import axios from 'axios';
 
 const Stack = createNativeStackNavigator();
+
+// Paleta 60-30-10: Cores bem distribuídas
+const COLORS = {
+  primary: '#0F1628', // 60% - Azul escuro (fundo dominante)
+  secondary: '#F5F5F5', // 30% - Cinza claro (cartas secundárias)
+  accent: '#FF6B6B', // 10% - Vermelho coral (destaques e acentos)
+  cardBg: '#FFFFFF',
+  text: '#1A1A2E',
+  textLight: '#6C757D',
+  border: '#E9ECEF',
+  success: '#00C896',
+  warning: '#FFB800',
+};
 
 const formatTitle = (text) =>
   text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
@@ -25,6 +40,24 @@ function HomeScreen({ navigation }) {
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Animação de entrada suave
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
     const loadSuggestions = async () => {
@@ -54,66 +87,68 @@ function HomeScreen({ navigation }) {
   };
 
   return (
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <StatusBar style="dark" />
+      <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <StatusBar style="light" />
 
-        <View style={styles.homeHeader}>
-          <Text style={styles.title}>Pokédex</Text>
-          <Text style={styles.subtitle}>Encontre dados rápidos do seu Pokémon favorito.</Text>
-        </View>
+          <View style={styles.homeHeader}>
+            <Text style={styles.logo}>Pokédex</Text>
+            <Text style={styles.subtitle}>Encontre qualquer Pokémon em um piscar de olhos</Text>
+          </View>
 
-        <View style={styles.introCard}>
-          <Text style={styles.introTitle}>Bem-vindo à Pokédex</Text>
-          <Text style={styles.introText}>
-            Digite o nome do Pokémon no campo abaixo e toque em Buscar para ver imagem, tipos, altura, peso e habilidades.
-          </Text>
-        </View>
+          <View style={styles.gradientCard}>
+            <Text style={styles.cardTitle}>Procure um Pokémon</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Digite o nome (ex: pikachu)"
+              placeholderTextColor={COLORS.textLight}
+              value={query}
+              autoCapitalize="none"
+              onChangeText={setQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+            />
 
-        <View style={styles.searchCard}>
-          <TextInput
-            style={styles.input}
-            placeholder="Exemplo: pikachu"
-            placeholderTextColor="#999"
-            value={query}
-            autoCapitalize="none"
-            onChangeText={setQuery}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-          />
+            <TouchableOpacity 
+              style={styles.searchButton} 
+              onPress={handleSearch}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.searchButtonText}>⚡ Buscar</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={handleSearch}>
-            <Text style={styles.buttonText}>Buscar Pokémon</Text>
-          </TouchableOpacity>
+            {!loadingSuggestions && query.length > 0 ? (
+              <View style={styles.suggestionsBox}>
+                {suggestions
+                  .filter((name) => name.includes(query.toLowerCase()))
+                  .slice(0, 5)
+                  .map((name) => (
+                    <TouchableOpacity
+                      key={name}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setQuery(name);
+                        setError('');
+                        navigation.navigate('Details', { pokemonName: name });
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.suggestionText}>{formatTitle(name)}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            ) : null}
 
-          {!loadingSuggestions && query.length > 0 ? (
-            <View style={styles.suggestionsBox}>
-              {suggestions
-                .filter((name) => name.includes(query.toLowerCase()))
-                .slice(0, 5)
-                .map((name) => (
-                  <TouchableOpacity
-                    key={name}
-                    style={styles.suggestionItem}
-                    onPress={() => {
-                      setQuery(name);
-                      setError('');
-                      navigation.navigate('Details', { pokemonName: name });
-                    }}
-                  >
-                    <Text style={styles.suggestionText}>{formatTitle(name)}</Text>
-                  </TouchableOpacity>
-                ))}
-            </View>
-          ) : null}
+            {error ? <Text style={styles.errorText}>❌ {error}</Text> : null}
+          </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </View>
-
-        <View style={styles.footerCard}>
-          <Text style={styles.footerTitle}>Dica</Text>
-          <Text style={styles.footerText}>Tente procurar por nomes como "pikachu", "bulbasaur" ou "charizard".</Text>
-        </View>
-      </ScrollView>
+          <View style={styles.tipsCard}>
+            <Text style={styles.tipsTitle}>💡 Dicas</Text>
+            <Text style={styles.tipsText}>Procure por qualquer Pokémon: pikachu, charizard, mewtwo, dragonite...</Text>
+          </View>
+        </ScrollView>
+      </Animated.View>
   );
 }
 
@@ -122,6 +157,24 @@ function DetailsScreen({ route, navigation }) {
   const [pokemon, setPokemon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    // Animação de entrada com fade e scale
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
     const loadPokemon = async () => {
@@ -155,85 +208,92 @@ function DetailsScreen({ route, navigation }) {
     loadPokemon();
   }, [pokemonName]);
 
-  const formatTitle = (text) =>
-    text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StatusBar style="dark" />
+    <Animated.View style={[styles.detailContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <StatusBar style="light" />
 
-      <View style={styles.detailsHeader}>
-        <Text style={styles.detailsTitle}>Resultado</Text>
-        <Text style={styles.detailsSubtitle}>{formatTitle(pokemonName)}</Text>
-      </View>
-
-      {loading && (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color="#D62828" />
-          <Text style={styles.loadingText}>Carregando...</Text>
-        </View>
-      )}
-
-      {error ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>Voltar</Text>
+        <View style={styles.detailHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>← Voltar</Text>
           </TouchableOpacity>
+          <Text style={styles.detailTitle}>{formatTitle(pokemonName)}</Text>
         </View>
-      ) : null}
 
-      {pokemon && !loading && (
-        <View style={styles.card}>
-          <Text style={styles.pokemonName}>{formatTitle(pokemon.name)}</Text>
-
-          {pokemon.image ? (
-            <Image source={{ uri: pokemon.image }} style={styles.pokemonImage} />
-          ) : (
-            <View style={styles.noImageBox}>
-              <Text style={styles.noImageText}>Imagem não disponível</Text>
-            </View>
-          )}
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Altura</Text>
-              <Text style={styles.infoValue}>{pokemon.height.toFixed(1)} m</Text>
-            </View>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Peso</Text>
-              <Text style={styles.infoValue}>{pokemon.weight.toFixed(1)} kg</Text>
-            </View>
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>Carregando...</Text>
           </View>
+        )}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tipos</Text>
-            <View style={styles.badgeRow}>
-              {pokemon.types.map((type) => (
-                <View key={type} style={styles.typeBadge}>
-                  <Text style={styles.badgeText}>{formatTitle(type)}</Text>
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {pokemon && !loading && (
+          <View style={styles.pokemonCard}>
+            <View style={styles.imageContainer}>
+              {pokemon.image ? (
+                <Image source={{ uri: pokemon.image }} style={styles.pokemonImage} />
+              ) : (
+                <View style={styles.noImageBox}>
+                  <Text style={styles.noImageText}>Imagem não disponível</Text>
                 </View>
-              ))}
+              )}
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Habilidades</Text>
-            <View style={styles.badgeRow}>
-              {pokemon.abilities.map((ability) => (
-                <View key={ability} style={styles.abilityBadge}>
-                  <Text style={styles.badgeText}>{formatTitle(ability)}</Text>
-                </View>
-              ))}
+            <Text style={styles.pokemonName}>{formatTitle(pokemon.name)}</Text>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Altura</Text>
+                <Text style={styles.statValue}>{pokemon.height.toFixed(1)}m</Text>
+              </View>
+              <View style={[styles.statBox, styles.statBoxCenter]}>
+                <Text style={styles.statLabel}>Peso</Text>
+                <Text style={styles.statValue}>{pokemon.weight.toFixed(1)}kg</Text>
+              </View>
             </View>
-          </View>
 
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>Buscar outro Pokémon</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </ScrollView>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Tipos</Text>
+              <View style={styles.badgeRow}>
+                {pokemon.types.map((type) => (
+                  <View key={type} style={[styles.badge, styles.typeBadge]}>
+                    <Text style={styles.badgeText}>{formatTitle(type)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Habilidades</Text>
+              <View style={styles.badgeRow}>
+                {pokemon.abilities.map((ability) => (
+                  <View key={ability} style={[styles.badge, styles.abilityBadge]}>
+                    <Text style={styles.badgeText}>{formatTitle(ability)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.newSearchButton} 
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.newSearchButtonText}>🔍 Buscar Outro</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </Animated.View>
   );
 }
 
@@ -242,21 +302,12 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: '#D62828' },
-          headerTintColor: '#fff',
-          contentStyle: { backgroundColor: '#F7F7FA' },
+          headerShown: false,
+          cardStyle: { backgroundColor: COLORS.primary },
         }}
       >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Pokédex' }}
-        />
-        <Stack.Screen
-          name="Details"
-          component={DetailsScreen}
-          options={{ title: 'Detalhes do Pokémon' }}
-        />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Details" component={DetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -264,276 +315,296 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+  },
+  detailContainer: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+  },
+  scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#F7F7FA',
-    padding: 24,
-    paddingTop: 30,
-    alignItems: 'center',
+    padding: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   homeHeader: {
-    width: '100%',
-    marginBottom: 20,
+    marginBottom: 30,
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#1F1E33',
+  logo: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: COLORS.cardBg,
+    marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#5A5A75',
-    marginTop: 6,
+    color: COLORS.secondary,
+    lineHeight: 24,
   },
-  introCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
+  gradientCard: {
+    backgroundColor: COLORS.cardBg,
     borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  introTitle: {
+  cardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F1E33',
-    marginBottom: 10,
-  },
-  introText: {
-    color: '#5A5A75',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  searchCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
+    color: COLORS.text,
+    marginBottom: 16,
   },
   input: {
     width: '100%',
     height: 54,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E2E8',
+    borderWidth: 2,
+    borderColor: COLORS.border,
     paddingHorizontal: 16,
     marginBottom: 14,
     fontSize: 16,
-    color: '#222',
-    backgroundColor: '#FAFAFC',
+    color: COLORS.text,
+    backgroundColor: COLORS.secondary,
   },
-  button: {
+  searchButton: {
     width: '100%',
-    backgroundColor: '#D62828',
+    backgroundColor: COLORS.accent,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  buttonText: {
-    color: '#fff',
+  searchButtonText: {
+    color: COLORS.cardBg,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   suggestionsBox: {
     width: '100%',
-    backgroundColor: '#F7F7FA',
+    backgroundColor: COLORS.secondary,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E2E8',
+    borderColor: COLORS.border,
     paddingVertical: 8,
     marginTop: 12,
     maxHeight: 220,
   },
   suggestionItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#E2E2E8',
+    borderBottomColor: COLORS.border,
   },
   suggestionText: {
-    color: '#1F1E33',
+    color: COLORS.text,
     fontSize: 15,
-  },
-  footerCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
-  },
-  footerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F1E33',
-    marginBottom: 8,
-  },
-  footerText: {
-    color: '#5A5A75',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  loadingBox: {
-    marginTop: 18,
-    alignItems: 'center',
-    width: '100%',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#5A5A75',
-    fontSize: 15,
+    fontWeight: '500',
   },
   errorText: {
     marginTop: 16,
-    color: '#D62828',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  errorCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
-  },
-  detailsHeader: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  detailsTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F1E33',
-  },
-  detailsSubtitle: {
-    fontSize: 16,
-    color: '#5A5A75',
-    marginTop: 6,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 6,
-    alignItems: 'center',
-  },
-  pokemonName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F1E33',
-    marginBottom: 14,
-  },
-  pokemonImage: {
-    width: 220,
-    height: 220,
-    resizeMode: 'contain',
-    marginBottom: 18,
-  },
-  noImageBox: {
-    width: 220,
-    height: 220,
-    borderRadius: 18,
-    backgroundColor: '#F0F0F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  noImageText: {
-    color: '#8A8A99',
-    fontSize: 14,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 18,
-  },
-  infoBox: {
-    width: '48%',
-    backgroundColor: '#F7F7FA',
-    borderRadius: 16,
-    padding: 14,
-    alignItems: 'center',
-  },
-  infoLabel: {
-    color: '#5A5A75',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  infoValue: {
-    color: '#1F1E33',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  section: {
-    width: '100%',
-    marginTop: 10,
-  },
-  sectionTitle: {
-    color: '#5A5A75',
+    color: COLORS.accent,
     fontSize: 15,
     fontWeight: '600',
-    marginBottom: 10,
+    textAlign: 'center',
+  },
+  tipsCard: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 20,
+    padding: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.accent,
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  tipsText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 22,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+  },
+  backButtonText: {
+    color: COLORS.accent,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  detailTitle: {
+    flex: 1,
+    fontSize: 32,
+    fontWeight: '900',
+    color: COLORS.cardBg,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: COLORS.secondary,
+    fontSize: 16,
+  },
+  errorCard: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+  },
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: COLORS.cardBg,
+    fontWeight: '600',
+  },
+  pokemonCard: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 20,
+    paddingVertical: 30,
+  },
+  pokemonImage: {
+    width: 240,
+    height: 240,
+    resizeMode: 'contain',
+  },
+  noImageBox: {
+    width: 240,
+    height: 240,
+    borderRadius: 18,
+    backgroundColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noImageText: {
+    color: COLORS.textLight,
+    fontSize: 14,
+  },
+  pokemonName: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.accent,
+  },
+  statBoxCenter: {
+    borderLeftColor: COLORS.success,
+  },
+  statLabel: {
+    color: COLORS.textLight,
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  statValue: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -5,
+    gap: 10,
+  },
+  badge: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginBottom: 8,
   },
   typeBadge: {
-    backgroundColor: '#FFE6E6',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    margin: 5,
+    backgroundColor: '#FFE5E5',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
   },
   abilityBadge: {
-    backgroundColor: '#F0F4FF',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    margin: 5,
+    backgroundColor: '#E8F5FF',
+    borderWidth: 1,
+    borderColor: '#2E7FFF',
   },
   badgeText: {
-    color: '#1F1E33',
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
-  backButton: {
+  newSearchButton: {
     width: '100%',
-    backgroundColor: '#1F1E33',
+    backgroundColor: COLORS.accent,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 20,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  backButtonText: {
-    color: '#fff',
+  newSearchButtonText: {
+    color: COLORS.cardBg,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
