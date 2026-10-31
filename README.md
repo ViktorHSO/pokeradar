@@ -8,7 +8,6 @@ Execute no terminal do projeto:
 
 ```bash
 npm install
-npm install axios @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-gesture-handler
 ```
 
 ## Executar o projeto
