@@ -77,7 +77,7 @@ export default function DetailsScreen({ route, navigation }) {
         {loading && (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={COLORS.accent} />
-            <Text style={styles.loadingText}>Carregando...</Text>
+            <Text style={styles.loadingText}>Rastreando...</Text>
           </View>
         )}
 

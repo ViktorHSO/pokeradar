@@ -67,10 +67,10 @@ export default function HomeScreen({ navigation }) {
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
           <View style={styles.header}>
             <Text style={styles.logo}>
-              Poké<Text style={styles.logoAccent}>dex</Text>
+              Poké<Text style={styles.logoAccent}>Radar</Text>
             </Text>
             <Text style={styles.subtitle}>
-              Encontre qualquer Pokémon pelo nome ou número da Pokédex.
+              Rastreie qualquer Pokémon pelo nome ou número da Pokédex.
             </Text>
           </View>
 
