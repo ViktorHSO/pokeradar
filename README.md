@@ -1,30 +1,51 @@
-# Pokédex Simples
+# PokéRadar
 
-App React Native simples usando Expo e PokéAPI.
+Pokédex feita em React Native com Expo, consumindo a [PokéAPI](https://pokeapi.co/).
+Busque um Pokémon pelo nome ou pelo número da Pokédex e veja a arte oficial, os tipos, os atributos base e as habilidades.
 
-## Dependências
+## Funcionalidades
 
-Execute no terminal do projeto:
+- Busca por nome ou número (ex.: `pikachu` ou `25`)
+- Sugestões enquanto você digita
+- Botão "Surpreenda-me", que abre um Pokémon aleatório
+- Card com a cor do tipo principal e tipos traduzidos para português
+- Atributos base com barras animadas
+- Alternância entre a arte normal e a shiny
+- Navegação para o Pokémon anterior e o próximo
+- Mensagens de erro diferentes para "Pokémon não encontrado" e "sem conexão"
+
+## Tecnologias
+
+- React Native com Expo SDK 58
+- React Navigation (native stack)
+- Axios
+- PokéAPI
+
+## Estrutura
+
+```
+App.js                      # navegação entre as telas
+src/
+  theme.js                  # cores, tipos e nomes dos atributos
+  services/pokeapi.js       # chamadas à PokéAPI
+  utils/format.js           # formatação de nomes e números
+  components/
+    TypeBadge.js            # etiqueta de tipo
+    StatBar.js              # barra de atributo
+  screens/
+    HomeScreen.js           # tela de busca
+    DetailsScreen.js        # tela de detalhes
+```
+
+## Como rodar
 
 ```bash
 npm install
-```
-
-## Executar o projeto
-
-```bash
 npx expo start
 ```
 
-Depois, abra no seu dispositivo ou emulador:
+Depois, escaneie o QR code com o app Expo Go no celular ou aperte:
 
-- Android: `a`
-- iOS: `i`
-- Web: `w`
-
-## Como usar
-
-1. Digite o nome de um Pokémon no campo de busca.
-2. Toque em **Buscar Pokémon**.
-3. Aguarde o carregamento.
-4. Veja os dados: imagem, nome, altura, peso, tipos e habilidades.
+- `a` para Android
+- `i` para iOS
+- `w` para Web

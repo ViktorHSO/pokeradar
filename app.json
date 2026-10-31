@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "Pokedex App Pesquisa",
-    "slug": "pokedex-app-pesquisa",
-    "version": "1.0.0",
+    "name": "PokéRadar",
+    "slug": "pokeradar",
+    "version": "2.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F1628",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0F1628"
       }
     },
     "web": {
