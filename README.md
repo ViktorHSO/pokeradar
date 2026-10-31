@@ -1,22 +1,22 @@
-# PokéRadar 📡
+# PokéRadar
 
-Uma Pokédex em React Native (Expo) que consome a [PokéAPI](https://pokeapi.co/).
-Digite um nome ou número e veja tudo sobre o Pokémon: arte oficial, tipos, atributos base e habilidades.
+Pokédex feita em React Native com Expo, consumindo a [PokéAPI](https://pokeapi.co/).
+Busque um Pokémon pelo nome ou pelo número da Pokédex e veja a arte oficial, os tipos, os atributos base e as habilidades.
 
 ## Funcionalidades
 
-- 🔎 Busca por **nome ou número** da Pokédex (ex.: `pikachu` ou `25`)
-- 💡 Sugestões automáticas enquanto você digita
-- 🎲 Botão **Surpreenda-me** com um Pokémon aleatório
-- 🎨 Card colorido de acordo com o **tipo** do Pokémon (tipos traduzidos para português)
-- 📊 **Atributos base** com barras animadas e total
-- ✨ Alternar entre a arte **normal e shiny**
-- ‹ › Navegar para o Pokémon **anterior/próximo** na Pokédex
-- ⚠️ Mensagens de erro claras (Pokémon não encontrado × sem internet) com botão de tentar de novo
+- Busca por nome ou número (ex.: `pikachu` ou `25`)
+- Sugestões enquanto você digita
+- Botão "Surpreenda-me", que abre um Pokémon aleatório
+- Card com a cor do tipo principal e tipos traduzidos para português
+- Atributos base com barras animadas
+- Alternância entre a arte normal e a shiny
+- Navegação para o Pokémon anterior e o próximo
+- Mensagens de erro diferentes para "Pokémon não encontrado" e "sem conexão"
 
 ## Tecnologias
 
-- [Expo](https://expo.dev/) SDK 58 + React Native
+- React Native com Expo SDK 58
 - React Navigation (native stack)
 - Axios
 - PokéAPI
@@ -24,17 +24,17 @@ Digite um nome ou número e veja tudo sobre o Pokémon: arte oficial, tipos, atr
 ## Estrutura
 
 ```
-App.js                      # navegação
+App.js                      # navegação entre as telas
 src/
   theme.js                  # cores, tipos e nomes dos atributos
   services/pokeapi.js       # chamadas à PokéAPI
   utils/format.js           # formatação de nomes e números
   components/
-    TypeBadge.js            # etiqueta colorida de tipo
-    StatBar.js              # barra animada de atributo
+    TypeBadge.js            # etiqueta de tipo
+    StatBar.js              # barra de atributo
   screens/
-    HomeScreen.js           # busca
-    DetailsScreen.js        # detalhes do Pokémon
+    HomeScreen.js           # tela de busca
+    DetailsScreen.js        # tela de detalhes
 ```
 
 ## Como rodar
@@ -44,7 +44,7 @@ npm install
 npx expo start
 ```
 
-Depois, escaneie o QR code com o app **Expo Go** no celular, ou aperte:
+Depois, escaneie o QR code com o app Expo Go no celular ou aperte:
 
 - `a` para Android
 - `i` para iOS
