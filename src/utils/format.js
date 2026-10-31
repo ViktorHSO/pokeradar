@@ -4,3 +4,6 @@ export const formatName = (text = '') =>
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
+
+// 25 -> "#025"
+export const formatNumber = (id) => `#${String(id).padStart(3, '0')}`;

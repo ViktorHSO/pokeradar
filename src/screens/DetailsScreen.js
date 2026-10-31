@@ -1,44 +1,52 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import axios from 'axios';
-import { getPokemon } from '../services/pokeapi';
-import { formatName } from '../utils/format';
-import { COLORS } from '../theme';
+import { getPokemon, MAX_POKEMON_ID } from '../services/pokeapi';
+import { formatName, formatNumber } from '../utils/format';
+import { COLORS, getType } from '../theme';
+import TypeBadge from '../components/TypeBadge';
+import StatBar from '../components/StatBar';
 
 export default function DetailsScreen({ route, navigation }) {
-  const { pokemonName } = route.params;
+  const [current, setCurrent] = useState(route.params.pokemon);
   const [pokemon, setPokemon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [shiny, setShiny] = useState(false);
   const [attempt, setAttempt] = useState(0); // muda para forçar "tentar de novo"
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const appear = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Animação de entrada com fade e scale
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  useEffect(() => {
-    // Cancela a requisição se o usuário sair da tela antes de terminar
+    // Cancela a requisição se o usuário sair da tela ou trocar de Pokémon antes de terminar
     const controller = new AbortController();
 
     setLoading(true);
     setError('');
+    setShiny(false);
+    appear.setValue(0);
 
-    getPokemon(pokemonName, { signal: controller.signal })
-      .then(setPokemon)
+    getPokemon(current, { signal: controller.signal })
+      .then((data) => {
+        setPokemon(data);
+        Animated.spring(appear, { toValue: 1, friction: 7, useNativeDriver: true }).start();
+      })
       .catch((err) => {
         if (axios.isCancel(err)) return;
         setPokemon(null);
         setError(
           err.response?.status === 404
-            ? 'Pokémon não encontrado. Verifique o nome e tente novamente.'
+            ? `Não encontramos "${current}". Confira o nome ou número.`
             : 'Não foi possível conectar à PokéAPI. Verifique sua internet.'
         );
       })
@@ -47,288 +55,259 @@ export default function DetailsScreen({ route, navigation }) {
       });
 
     return () => controller.abort();
-  }, [pokemonName, attempt]);
+  }, [current, attempt]);
+
+  const color = pokemon ? getType(pokemon.types[0]).color : COLORS.accent;
+  const image = shiny && pokemon?.shinyImage ? pokemon.shinyImage : pokemon?.image;
+  const canGoPrev = pokemon && pokemon.id > 1 && pokemon.id <= MAX_POKEMON_ID;
+  const canGoNext = pokemon && pokemon.id < MAX_POKEMON_ID;
+  const total = pokemon?.stats.reduce((sum, s) => sum + s.value, 0);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <Animated.View style={[styles.detailContainer, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.detailHeader}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Voltar</Text>
-            </TouchableOpacity>
-            <Text style={styles.detailTitle}>{formatName(pokemonName)}</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+            <Text style={styles.iconButtonText}>← Voltar</Text>
+          </TouchableOpacity>
+          {pokemon && <Text style={styles.number}>{formatNumber(pokemon.id)}</Text>}
+        </View>
+
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>Carregando...</Text>
           </View>
+        )}
 
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.accent} />
-              <Text style={styles.loadingText}>Carregando...</Text>
-            </View>
-          )}
-
-          {!loading && error ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={() => setAttempt((n) => n + 1)}>
-                <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+        {!loading && error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorEmoji}>😕</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.row}>
+              <TouchableOpacity style={styles.outlineButton} onPress={() => navigation.goBack()}>
+                <Text style={styles.outlineButtonText}>Nova busca</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.solidButton} onPress={() => setAttempt((n) => n + 1)}>
+                <Text style={styles.solidButtonText}>Tentar de novo</Text>
               </TouchableOpacity>
             </View>
-          ) : null}
+          </View>
+        ) : null}
 
-          {pokemon && !loading && (
-            <View style={styles.pokemonCard}>
-              <View style={styles.imageContainer}>
-                {pokemon.image ? (
-                  <Image source={{ uri: pokemon.image }} style={styles.pokemonImage} />
-                ) : (
-                  <View style={styles.noImageBox}>
-                    <Text style={styles.noImageText}>Imagem não disponível</Text>
+        {!loading && pokemon && (
+          <Animated.View
+            style={{
+              opacity: appear,
+              transform: [{ scale: appear.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
+            }}
+          >
+            <View style={[styles.hero, { backgroundColor: color }]}>
+              <Text style={styles.heroWatermark}>{formatNumber(pokemon.id)}</Text>
+              {image ? (
+                <Image source={{ uri: image }} style={styles.image} resizeMode="contain" />
+              ) : (
+                <View style={[styles.image, styles.noImage]}>
+                  <Text style={styles.noImageText}>Imagem não disponível</Text>
+                </View>
+              )}
+              {pokemon.shinyImage && (
+                <TouchableOpacity
+                  style={[styles.shinyToggle, shiny && styles.shinyToggleOn]}
+                  onPress={() => setShiny((s) => !s)}
+                >
+                  <Text style={styles.shinyText}>✨ {shiny ? 'Shiny' : 'Normal'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.name}>{formatName(pokemon.name)}</Text>
+              <View style={[styles.row, styles.centerRow]}>
+                {pokemon.types.map((type) => (
+                  <TypeBadge key={type} type={type} />
+                ))}
+              </View>
+
+              <View style={styles.measures}>
+                <View style={styles.measure}>
+                  <Text style={styles.measureValue}>{pokemon.height.toFixed(1)} m</Text>
+                  <Text style={styles.measureLabel}>Altura</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.measure}>
+                  <Text style={styles.measureValue}>{pokemon.weight.toFixed(1)} kg</Text>
+                  <Text style={styles.measureLabel}>Peso</Text>
+                </View>
+              </View>
+
+              <Text style={styles.sectionTitle}>Atributos base</Text>
+              {pokemon.stats.map((stat) => (
+                <StatBar key={stat.name} name={stat.name} value={stat.value} color={color} />
+              ))}
+              <Text style={styles.total}>Total: {total}</Text>
+
+              <Text style={styles.sectionTitle}>Habilidades</Text>
+              <View style={styles.row}>
+                {pokemon.abilities.map((ability) => (
+                  <View key={ability.name} style={[styles.ability, { borderColor: color }]}>
+                    <Text style={styles.abilityText}>
+                      {formatName(ability.name)}
+                      {ability.hidden ? ' (oculta)' : ''}
+                    </Text>
                   </View>
-                )}
+                ))}
               </View>
+            </View>
 
-              <Text style={styles.pokemonName}>{formatName(pokemon.name)}</Text>
-
-              <View style={styles.statsRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statLabel}>Altura</Text>
-                  <Text style={styles.statValue}>{pokemon.height.toFixed(1)}m</Text>
-                </View>
-                <View style={[styles.statBox, styles.statBoxCenter]}>
-                  <Text style={styles.statLabel}>Peso</Text>
-                  <Text style={styles.statValue}>{pokemon.weight.toFixed(1)}kg</Text>
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Tipos</Text>
-                <View style={styles.badgeRow}>
-                  {pokemon.types.map((type) => (
-                    <View key={type} style={[styles.badge, styles.typeBadge]}>
-                      <Text style={styles.badgeText}>{formatName(type)}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Habilidades</Text>
-                <View style={styles.badgeRow}>
-                  {pokemon.abilities.map((ability) => (
-                    <View key={ability} style={[styles.badge, styles.abilityBadge]}>
-                      <Text style={styles.badgeText}>{formatName(ability)}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
+            <View style={styles.pager}>
               <TouchableOpacity
-                style={styles.newSearchButton}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.8}
+                style={[styles.pagerButton, !canGoPrev && styles.disabled]}
+                disabled={!canGoPrev}
+                onPress={() => setCurrent(pokemon.id - 1)}
               >
-                <Text style={styles.newSearchButtonText}>🔍 Buscar Outro</Text>
+                <Text style={styles.pagerText}>‹ Anterior</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pagerButton, !canGoNext && styles.disabled]}
+                disabled={!canGoNext}
+                onPress={() => setCurrent(pokemon.id + 1)}
+              >
+                <Text style={styles.pagerText}>Próximo ›</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </ScrollView>
-      </Animated.View>
+          </Animated.View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.primary },
-  detailContainer: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-  },
-  scrollContent: {
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  content: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingTop: 12,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
-  errorText: {
-    marginTop: 16,
-    color: COLORS.accent,
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  detailHeader: {
+  topBar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  backButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 0,
-  },
-  backButtonText: {
-    color: COLORS.accent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  detailTitle: {
-    flex: 1,
-    fontSize: 32,
-    fontWeight: '900',
-    color: COLORS.cardBg,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    marginTop: 16,
-    color: COLORS.secondary,
-    fontSize: 16,
-  },
+  iconButton: { paddingVertical: 8 },
+  iconButtonText: { color: COLORS.accent, fontSize: 16, fontWeight: '700' },
+  number: { color: COLORS.textOnDark, opacity: 0.7, fontSize: 18, fontWeight: '800' },
+  center: { alignItems: 'center', paddingVertical: 80 },
+  loadingText: { marginTop: 14, color: COLORS.textOnDark, fontSize: 16 },
   errorCard: {
-    backgroundColor: COLORS.cardBg,
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
+  },
+  errorEmoji: { fontSize: 44, marginBottom: 8 },
+  errorText: { color: COLORS.text, fontSize: 15, textAlign: 'center', marginBottom: 18, lineHeight: 22 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  centerRow: { justifyContent: 'center', marginBottom: 20 },
+  outlineButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: COLORS.accent,
   },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: COLORS.accent,
+  outlineButtonText: { color: COLORS.accent, fontWeight: '700' },
+  solidButton: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: COLORS.accent,
   },
-  retryButtonText: {
-    color: COLORS.cardBg,
-    fontWeight: '600',
-  },
-  pokemonCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  imageContainer: {
+  solidButtonText: { color: COLORS.surface, fontWeight: '700' },
+  hero: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: COLORS.secondary,
-    borderRadius: 20,
-    paddingVertical: 30,
+    paddingTop: 24,
+    paddingBottom: 12,
+    overflow: 'hidden',
   },
-  pokemonImage: {
-    width: 240,
-    height: 240,
-    resizeMode: 'contain',
+  heroWatermark: {
+    position: 'absolute',
+    top: 4,
+    right: 14,
+    fontSize: 72,
+    fontWeight: '900',
+    color: 'rgba(255,255,255,0.22)',
   },
-  noImageBox: {
-    width: 240,
-    height: 240,
-    borderRadius: 18,
-    backgroundColor: COLORS.border,
-    justifyContent: 'center',
-    alignItems: 'center',
+  image: { width: 220, height: 220 },
+  noImage: { justifyContent: 'center', alignItems: 'center' },
+  noImageText: { color: COLORS.surface },
+  shinyToggle: {
+    position: 'absolute',
+    left: 14,
+    top: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  noImageText: {
-    color: COLORS.textLight,
-    fontSize: 14,
+  shinyToggleOn: { backgroundColor: 'rgba(0,0,0,0.45)' },
+  shinyText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    padding: 22,
   },
-  pokemonName: {
-    fontSize: 32,
+  name: {
+    fontSize: 30,
     fontWeight: '900',
     color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: COLORS.secondary,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.accent,
-  },
-  statBoxCenter: {
-    borderLeftColor: COLORS.success,
-  },
-  statLabel: {
-    color: COLORS.textLight,
-    fontSize: 13,
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  statValue: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
     marginBottom: 12,
   },
-  badgeRow: {
+  measures: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginBottom: 24,
   },
-  badge: {
-    paddingVertical: 10,
+  measure: { flex: 1, alignItems: 'center' },
+  measureValue: { fontSize: 19, fontWeight: '900', color: COLORS.text },
+  measureLabel: { fontSize: 12, color: COLORS.textMuted, marginTop: 4, fontWeight: '600' },
+  divider: { width: 1, backgroundColor: COLORS.border },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
+  total: {
+    textAlign: 'right',
+    color: COLORS.textMuted,
+    fontWeight: '700',
+    marginBottom: 22,
+    marginTop: 2,
+  },
+  ability: {
+    paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 14,
-    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    backgroundColor: COLORS.surfaceAlt,
   },
-  typeBadge: {
-    backgroundColor: '#FFE5E5',
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-  },
-  abilityBadge: {
-    backgroundColor: '#E8F5FF',
-    borderWidth: 1,
-    borderColor: '#2E7FFF',
-  },
-  badgeText: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  newSearchButton: {
-    width: '100%',
-    backgroundColor: COLORS.accent,
-    borderRadius: 14,
-    paddingVertical: 16,
+  abilityText: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
+  pager: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  pagerButton: {
+    flex: 1,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 20,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  newSearchButtonText: {
-    color: COLORS.cardBg,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  pagerText: { color: COLORS.textOnDark, fontWeight: '800', fontSize: 15 },
+  disabled: { opacity: 0.3 },
 });
