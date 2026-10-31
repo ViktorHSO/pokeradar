@@ -1,88 +1,106 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { getPokemonNames } from '../services/pokeapi';
+import { getPokemonNames, randomPokemonId } from '../services/pokeapi';
 import { formatName } from '../utils/format';
 import { COLORS } from '../theme';
 
-const MAX_SUGGESTIONS = 5;
+const MAX_SUGGESTIONS = 6;
+const EXAMPLES = ['pikachu', 'charizard', 'gengar', 'lucario', 'eevee'];
 
 export default function HomeScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [names, setNames] = useState([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Animação de entrada suave
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+      Animated.timing(fade, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
 
     // Se falhar, o app continua funcionando, só sem sugestões
     getPokemonNames().then(setNames).catch(() => setNames([]));
   }, []);
 
-  // Recalcula só quando o texto ou a lista mudam
+  // Recalcula só quando o texto ou a lista mudam.
+  // Nomes que começam com o termo aparecem primeiro.
   const suggestions = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return [];
-    return names.filter((name) => name.includes(term)).slice(0, MAX_SUGGESTIONS);
+    if (!term || /^\d+$/.test(term)) return [];
+    const starts = names.filter((n) => n.startsWith(term));
+    const contains = names.filter((n) => !n.startsWith(term) && n.includes(term));
+    return [...starts, ...contains].slice(0, MAX_SUGGESTIONS);
   }, [query, names]);
 
-  const openPokemon = (name) => {
+  const openPokemon = (nameOrId) => {
     setError('');
     Keyboard.dismiss();
-    navigation.navigate('Details', { pokemonName: name });
+    navigation.navigate('Details', { pokemon: nameOrId });
   };
 
   const handleSearch = () => {
     const term = query.trim().toLowerCase();
     if (!term) {
-      setError('Digite o nome do Pokémon para buscar.');
+      setError('Digite um nome ou número para buscar.');
       return;
     }
     openPokemon(term);
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.homeHeader}>
-            <Text style={styles.logo}>Pokédex</Text>
-            <Text style={styles.subtitle}>Encontre qualquer Pokémon em um piscar de olhos</Text>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
+          <View style={styles.header}>
+            <Text style={styles.logo}>
+              Poké<Text style={styles.logoAccent}>dex</Text>
+            </Text>
+            <Text style={styles.subtitle}>
+              Encontre qualquer Pokémon pelo nome ou número da Pokédex.
+            </Text>
           </View>
 
-          <View style={styles.gradientCard}>
-            <Text style={styles.cardTitle}>Procure um Pokémon</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Quem você está procurando?</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Digite o nome (ex: pikachu)"
-              placeholderTextColor={COLORS.textLight}
+              placeholder="Ex.: pikachu ou 25"
+              placeholderTextColor={COLORS.textMuted}
               value={query}
               autoCapitalize="none"
               autoCorrect={false}
-              onChangeText={setQuery}
+              onChangeText={(text) => {
+                setQuery(text);
+                if (error) setError('');
+              }}
               onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
 
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch} activeOpacity={0.8}>
-              <Text style={styles.searchButtonText}>⚡ Buscar</Text>
-            </TouchableOpacity>
-
             {suggestions.length > 0 && (
-              <View style={styles.suggestionsBox}>
-                {suggestions.map((name) => (
+              <View style={styles.suggestions}>
+                {suggestions.map((name, index) => (
                   <TouchableOpacity
                     key={name}
-                    style={styles.suggestionItem}
+                    style={[
+                      styles.suggestionItem,
+                      index === suggestions.length - 1 && styles.suggestionLast,
+                    ]}
                     onPress={() => {
                       setQuery(name);
                       openPokemon(name);
@@ -95,137 +113,121 @@ export default function HomeScreen({ navigation }) {
               </View>
             )}
 
-            {error ? <Text style={styles.errorText}>❌ {error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity style={styles.primaryButton} onPress={handleSearch} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Buscar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => openPokemon(randomPokemonId())}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryButtonText}>🎲 Surpreenda-me</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.tipsCard}>
-            <Text style={styles.tipsTitle}>💡 Dicas</Text>
-            <Text style={styles.tipsText}>
-              Procure por qualquer Pokémon: pikachu, charizard, mewtwo, dragonite...
-            </Text>
+          <View style={styles.tips}>
+            <Text style={styles.tipsTitle}>Experimente</Text>
+            <View style={styles.chips}>
+              {EXAMPLES.map((name) => (
+                <TouchableOpacity key={name} style={styles.chip} onPress={() => openPokemon(name)}>
+                  <Text style={styles.chipText}>{formatName(name)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </ScrollView>
-      </Animated.View>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.primary },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-  },
-  scrollContent: {
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  content: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
-  homeHeader: {
-    marginBottom: 30,
-  },
-  logo: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: COLORS.cardBg,
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    lineHeight: 24,
-  },
-  gradientCard: {
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 16,
-  },
-  input: {
+    paddingTop: 32,
     width: '100%',
-    height: 54,
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  header: { marginBottom: 28 },
+  logo: { fontSize: 46, fontWeight: '900', color: COLORS.surface, letterSpacing: -1 },
+  logoAccent: { color: COLORS.accent },
+  subtitle: { fontSize: 16, color: COLORS.textOnDark, opacity: 0.8, lineHeight: 24, marginTop: 6 },
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    padding: 22,
+    marginBottom: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
+  cardTitle: { fontSize: 19, fontWeight: '800', color: COLORS.text, marginBottom: 14 },
+  input: {
+    height: 52,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: COLORS.border,
     paddingHorizontal: 16,
-    marginBottom: 14,
     fontSize: 16,
     color: COLORS.text,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.surfaceAlt,
   },
-  searchButton: {
-    width: '100%',
-    backgroundColor: COLORS.accent,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  searchButtonText: {
-    color: COLORS.cardBg,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  suggestionsBox: {
-    width: '100%',
-    backgroundColor: COLORS.secondary,
+  suggestions: {
+    marginTop: 8,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingVertical: 8,
-    marginTop: 12,
-    maxHeight: 220,
+    backgroundColor: COLORS.surfaceAlt,
+    overflow: 'hidden',
   },
   suggestionItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  suggestionText: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  errorText: {
+  suggestionLast: { borderBottomWidth: 0 },
+  suggestionText: { color: COLORS.text, fontSize: 15, fontWeight: '500' },
+  errorText: { marginTop: 12, color: COLORS.accent, fontSize: 14, fontWeight: '600' },
+  primaryButton: {
     marginTop: 16,
-    color: COLORS.accent,
-    fontSize: 15,
-    fontWeight: '600',
-    textAlign: 'center',
+    backgroundColor: COLORS.accent,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
   },
-  tipsCard: {
-    backgroundColor: COLORS.secondary,
+  primaryButtonText: { color: COLORS.surface, fontSize: 16, fontWeight: '800' },
+  secondaryButton: {
+    marginTop: 10,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+  },
+  secondaryButtonText: { color: COLORS.accent, fontSize: 15, fontWeight: '800' },
+  tips: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 20,
-    padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.accent,
+    padding: 18,
   },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
+  tipsTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textOnDark, marginBottom: 12, opacity: 0.8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,107,107,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.5)',
   },
-  tipsText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    lineHeight: 22,
-  },
+  chipText: { color: COLORS.textOnDark, fontSize: 13, fontWeight: '600' },
 });
