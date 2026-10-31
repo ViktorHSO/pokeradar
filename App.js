@@ -303,7 +303,7 @@ export default function App() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          cardStyle: { backgroundColor: COLORS.primary },
+          contentStyle: { backgroundColor: COLORS.primary },
         }}
       >
         <Stack.Screen name="Home" component={HomeScreen} />
