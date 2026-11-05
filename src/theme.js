@@ -2,13 +2,16 @@
 // 60% fundo escuro · 30% superfícies claras · 10% destaque coral
 export const COLORS = {
   background: '#0F1628',
+  backgroundAlt: '#18213A',
   surface: '#FFFFFF',
-  surfaceAlt: '#F5F5F5',
+  surfaceAlt: '#F5F5F7',
   accent: '#FF6B6B',
   text: '#1A1A2E',
   textMuted: '#6C757D',
   textOnDark: '#F5F5F5',
   border: '#E9ECEF',
+  male: '#4A90E2',
+  female: '#F06292',
 };
 
 // Cor e nome em português de cada tipo
@@ -33,8 +36,9 @@ export const TYPES = {
   fairy: { label: 'Fada', color: '#D685AD' },
 };
 
-export const getType = (name) =>
-  TYPES[name] || { label: name, color: COLORS.textMuted };
+export const TYPE_NAMES = Object.keys(TYPES);
+
+export const getType = (name) => TYPES[name] || { label: name, color: COLORS.textMuted };
 
 export const STAT_LABELS = {
   hp: 'HP',
@@ -43,4 +47,72 @@ export const STAT_LABELS = {
   'special-attack': 'At. Esp.',
   'special-defense': 'Def. Esp.',
   speed: 'Velocidade',
+};
+
+// Cor da barra conforme o valor do atributo (vermelho = baixo, verde/azul = alto)
+export const statColor = (value) => {
+  if (value < 50) return '#F34444';
+  if (value < 80) return '#FF7F0F';
+  if (value < 100) return '#F2C94C';
+  if (value < 130) return '#A0E515';
+  if (value < 150) return '#23CD5E';
+  return '#00C2B8';
+};
+
+// Faixa de números de cada geração na Pokédex Nacional
+export const GENERATIONS = [
+  { id: 1, label: 'I', region: 'Kanto', from: 1, to: 151 },
+  { id: 2, label: 'II', region: 'Johto', from: 152, to: 251 },
+  { id: 3, label: 'III', region: 'Hoenn', from: 252, to: 386 },
+  { id: 4, label: 'IV', region: 'Sinnoh', from: 387, to: 493 },
+  { id: 5, label: 'V', region: 'Unova', from: 494, to: 649 },
+  { id: 6, label: 'VI', region: 'Kalos', from: 650, to: 721 },
+  { id: 7, label: 'VII', region: 'Alola', from: 722, to: 809 },
+  { id: 8, label: 'VIII', region: 'Galar', from: 810, to: 905 },
+  { id: 9, label: 'IX', region: 'Paldea', from: 906, to: 1025 },
+];
+
+export const generationOf = (id) => GENERATIONS.find((g) => id >= g.from && id <= g.to);
+
+export const HABITATS = {
+  cave: 'Caverna',
+  forest: 'Floresta',
+  grassland: 'Campos',
+  mountain: 'Montanha',
+  rare: 'Raro',
+  'rough-terrain': 'Terreno acidentado',
+  sea: 'Mar',
+  urban: 'Urbano',
+  'waters-edge': 'Beira d’água',
+};
+
+export const EGG_GROUPS = {
+  monster: 'Monstro',
+  water1: 'Água 1',
+  water2: 'Água 2',
+  water3: 'Água 3',
+  bug: 'Inseto',
+  flying: 'Voador',
+  ground: 'Campo',
+  fairy: 'Fada',
+  plant: 'Planta',
+  humanshape: 'Humanoide',
+  mineral: 'Mineral',
+  indeterminate: 'Amorfo',
+  ditto: 'Ditto',
+  dragon: 'Dragão',
+  'no-eggs': 'Não põe ovos',
+};
+
+export const ITEMS = {
+  'fire-stone': 'Pedra do Fogo',
+  'water-stone': 'Pedra da Água',
+  'thunder-stone': 'Pedra do Trovão',
+  'leaf-stone': 'Pedra da Folha',
+  'moon-stone': 'Pedra da Lua',
+  'sun-stone': 'Pedra do Sol',
+  'shiny-stone': 'Pedra Brilhante',
+  'dusk-stone': 'Pedra do Anoitecer',
+  'dawn-stone': 'Pedra do Amanhecer',
+  'ice-stone': 'Pedra de Gelo',
 };
