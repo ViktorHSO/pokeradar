@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { COLORS, STAT_LABELS } from '../theme';
+import { COLORS, STAT_LABELS, statColor } from '../theme';
 
 const MAX_STAT = 255; // maior valor base possível na série
 
-export default function StatBar({ name, value, color }) {
+// "delay" faz as barras encherem uma depois da outra (efeito cascata)
+export default function StatBar({ name, value, delay = 0 }) {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -12,9 +13,10 @@ export default function StatBar({ name, value, color }) {
     Animated.timing(progress, {
       toValue: Math.min(value / MAX_STAT, 1),
       duration: 700,
+      delay,
       useNativeDriver: false, // largura não é suportada pelo driver nativo
     }).start();
-  }, [value]);
+  }, [value, delay]);
 
   const width = progress.interpolate({
     inputRange: [0, 1],
@@ -26,7 +28,7 @@ export default function StatBar({ name, value, color }) {
       <Text style={styles.label}>{STAT_LABELS[name] || name}</Text>
       <Text style={styles.value}>{value}</Text>
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, { width, backgroundColor: color }]} />
+        <Animated.View style={[styles.fill, { width, backgroundColor: statColor(value) }]} />
       </View>
     </View>
   );
@@ -36,7 +38,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   label: {
     width: 84,
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     textAlign: 'right',
-    marginRight: 10,
+    marginRight: 12,
   },
   track: {
     flex: 1,
