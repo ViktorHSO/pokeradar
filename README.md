@@ -3,6 +3,8 @@
 Pokédex feita em React Native com Expo, consumindo a [PokéAPI](https://pokeapi.co/).
 Busque um Pokémon pelo nome ou pelo número da Pokédex e veja a arte oficial, os tipos, os atributos base e as habilidades.
 
+**[Abrir a versão web](https://viktorhso.github.io/pokeradar/)**
+
 ## Telas
 
 <table>
